@@ -50,7 +50,7 @@
       <div class="hr">⚾ HOME RUN! ⚾</div>
       <a id="vidWatch" class="btn" href="https://www.youtube.com/watch?v=HtxOsOuY7hA&t=25s" target="_blank" rel="noopener">Klik hier om te zien waar Henk zijn bal landt</a>
     </div>
-    <button id="vidClose" class="btn">VERDER ▶</button>
+    <button id="vidClose" class="btn hidden">VERDER ▶</button>
   </div>
   <div class="scan"></div>
 </div>
@@ -276,7 +276,7 @@
   function startGame(){inning=1;outs=0;strikes=0;henkPos={x:HOME.x,y:HOME.y+4};go('roam');}
   function startAtBat(){henkPos={x:HOME.x,y:HOME.y};strikes=0;go('ready');}
   function beginPlay(){
-    if(Math.random()<0.10){ openVideoTab(); play={scenario:'homerun',call:pick(CALLS)}; return go('homerun'); } // rare dinger: open video via anchor-click inside the swing gesture (iOS-friendly)
+    if(Math.random()<0.10){ play={scenario:'homerun',call:pick(CALLS)}; return go('homerun'); } // rare dinger: video opens only via the on-screen link
     const ground=Math.random()<0.6;
     const tt=pick(ground?INFIELD:OUTFIELD), target={x:tt[0],y:tt[1]};
     const scenario = !ground?pick(['fly','bounce','triple']):pick(['out1','out1','second','trip']);
@@ -293,7 +293,7 @@
   function beginOut(){outs++;go('out');}
   function advanceFromOut(){if(outs>=3){inning++;outs=0;}henkPos={x:HOME.x,y:HOME.y+4};go('roam');}
   function startKick(){ if(talkNPC){talkNPC.gone=true;downedColors={hair:talkNPC.hair,shirt:talkNPC.shirt,pants:talkNPC.pants};} go('bbqKick'); }
-  function showVideo(){ state='video'; document.getElementById('vid').classList.remove('hidden'); }
+  function showVideo(){ state='video'; document.getElementById('vidClose').classList.add('hidden'); document.getElementById('vid').classList.remove('hidden'); }
   function closeVideo(){ document.getElementById('vid').classList.add('hidden'); henkPos={x:HOME.x,y:HOME.y+4}; go('roam'); }
 
   function moveVec(){
@@ -484,7 +484,7 @@
       case 'pitch': { const p=(now()-t0)/PITCH_MS,d=Math.abs(p-C);
         if(d<0.12){beginPlay();} else {strikes++; if(strikes>=3){outReason=pick(STRIKE_OUTS);beginOut();}else go('miss');} break; }
       case 'out': advanceFromOut();break;
-      case 'video': closeVideo();break;
+      case 'video': if(!document.getElementById('vidClose').classList.contains('hidden'))closeVideo();break;
       case 'bbq': if(nearNPC){
           talkNPC=nearNPC;
           if(!talkNPC.talked){talkNPC.talked=true;talkedCount++;}
@@ -508,6 +508,7 @@
   joyEl.addEventListener('pointermove',e=>{e.preventDefault(); joyMove(e);});
   joyEl.addEventListener('pointerup',joyEnd); joyEl.addEventListener('pointercancel',joyEnd);
   document.getElementById('swingBtn').addEventListener('pointerdown',e=>{e.preventDefault();act();});
+  document.getElementById('vidWatch').addEventListener('click',()=>{ document.getElementById('vidClose').classList.remove('hidden'); });
   document.getElementById('vidClose').addEventListener('click',e=>{e.preventDefault();closeVideo();});
   cv.addEventListener('pointerdown',e=>{ if(['title','roam','ready','pitch','miss','out','bbqTalk'].includes(state)){e.preventDefault();act();} },{passive:false});
 })();
