@@ -30,10 +30,8 @@
   .btn.hidden{display:none;}
   #startBtn{bottom:10%;}
   #touch{position:absolute;inset:0;z-index:9;display:none;} #touch.on{display:block;}
-  .pad{position:absolute;bottom:calc(4px + env(safe-area-inset-bottom));left:calc(4px + env(safe-area-inset-left));width:102px;height:102px;}
-  .pad button{position:absolute;width:34px;height:34px;background:#241f1bbb;color:#F4C542;border:2px solid #F4C542;font-family:'Press Start 2P',monospace;font-size:11px;padding:0;}
-  .pad button:active{background:#F4C542;color:#241f1b;}
-  .pad .u{left:34px;top:0;} .pad .d{left:34px;top:68px;} .pad .l{left:0;top:34px;} .pad .r{left:68px;top:34px;}
+  #joy{position:absolute;bottom:calc(6px + env(safe-area-inset-bottom));left:calc(6px + env(safe-area-inset-left));width:104px;height:104px;border-radius:50%;background:#241f1b66;border:3px solid #F4C54299;touch-action:none;}
+  #knob{position:absolute;left:50%;top:50%;width:46px;height:46px;margin:-23px 0 0 -23px;border-radius:50%;background:#F4C542cc;border:3px solid #241f1b;will-change:transform;}
   #swingBtn{position:absolute;bottom:calc(5px + env(safe-area-inset-bottom));right:calc(5px + env(safe-area-inset-right));width:76px;height:76px;border-radius:50%;background:#F4C542;border:3px solid #241f1b;color:#241f1b;font-family:'Press Start 2P',monospace;font-size:11px;box-shadow:3px 3px 0 #241f1b;}
   #swingBtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #241f1b;}
   @media (orientation:landscape){ body{padding:0;} #stage{width:min(100vw,133.3dvh);} }
@@ -44,10 +42,7 @@
   <canvas id="game" width="640" height="480"></canvas>
   <button id="startBtn" class="btn">START</button>
   <div id="touch">
-    <div class="pad">
-      <button class="u" data-dir="up">▲</button><button class="d" data-dir="down">▼</button>
-      <button class="l" data-dir="left">◀</button><button class="r" data-dir="right">▶</button>
-    </div>
+    <div id="joy"><div id="knob"></div></div>
     <button id="swingBtn">OK</button>
   </div>
   <div id="vid" class="hidden">
@@ -254,7 +249,7 @@
   let state='title', t0=0, last=0, bob=0;
   let inning=1, outs=0, strikes=0;
   let henkPos={x:HOME.x,y:HOME.y};
-  const keys={}, touchDir={};
+  const keys={}, joy={id:null,cx:0,cy:0,R:30,vx:0,vy:0};
   let play=null, outReason='', talkLines=null, nearNPC=null, talkNPC=null;
   let vegaOnField=false, talkedCount=0, vegaDone=false, hitCount=0;
   let downedColors={hair:'#2a2a2a',shirt:'#6A8A3C',pants:'#6B4A2A'};
@@ -303,9 +298,10 @@
   function closeVideo(){ document.getElementById('vid').classList.add('hidden'); henkPos={x:HOME.x,y:HOME.y+4}; go('roam'); }
 
   function moveVec(){
+    if(joy.vx||joy.vy) return {vx:joy.vx,vy:joy.vy};   // analog joystick
     let vx=0,vy=0;
-    if(keys.ArrowLeft||keys.KeyA||touchDir.left)vx--; if(keys.ArrowRight||keys.KeyD||touchDir.right)vx++;
-    if(keys.ArrowUp||keys.KeyW||touchDir.up)vy--; if(keys.ArrowDown||keys.KeyS||touchDir.down)vy++;
+    if(keys.ArrowLeft||keys.KeyA)vx--; if(keys.ArrowRight||keys.KeyD)vx++;
+    if(keys.ArrowUp||keys.KeyW)vy--; if(keys.ArrowDown||keys.KeyS)vy++;
     if(vx&&vy){vx*=0.707;vy*=0.707;} return {vx,vy};
   }
 
@@ -319,7 +315,7 @@
       ctx.fillStyle='#4C9E5A';ctx.fillRect(0,330,W,150);ctx.fillStyle='#3A7D47';ctx.fillRect(0,320,W,10);
       text('HENK JUFFER',W/2,128,18,'#241f1b','Press Start 2P'); stamp('SOFTBAL',W/2,188,46,'#F28C28','#241f1b');
       bob+=0.04; henk(HENK_STANCE,330,372,5.0,Math.sin(bob*2)*3); ball(165,300,4.0);
-      text(TOUCH?'D-pad: lopen   ·   knop: slaan/actie':'Pijltjes: lopen   ·   Spatie: actie',W/2,250,24,'#241f1b');
+      text(TOUCH?'Joystick: lopen   ·   knop: slaan/actie':'Pijltjes: lopen   ·   Spatie: actie',W/2,250,24,'#241f1b');
       return raf();
     }
     if(state==='roam'){
@@ -505,9 +501,13 @@
   window.addEventListener('keydown',e=>{keys[e.code]=true; if(e.code==='Space'||e.code==='Enter'){e.preventDefault();act();} if(e.code.startsWith('Arrow'))e.preventDefault();});
   window.addEventListener('keyup',e=>{keys[e.code]=false;});
   if(matchMedia('(pointer:coarse)').matches)touchUI.classList.add('on');
-  touchUI.querySelectorAll('.pad button').forEach(b=>{const d=b.dataset.dir;
-    const on=e=>{e.preventDefault();touchDir[d]=true;}, off=e=>{e.preventDefault();touchDir[d]=false;};
-    b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off);});
+  const joyEl=document.getElementById('joy'), knob=document.getElementById('knob');
+  function joyStart(e){ const r=joyEl.getBoundingClientRect(); joy.cx=r.left+r.width/2; joy.cy=r.top+r.height/2; joy.id=e.pointerId; joyMove(e); }
+  function joyMove(e){ if(joy.id!==e.pointerId)return; const dx=e.clientX-joy.cx, dy=e.clientY-joy.cy; const d=Math.hypot(dx,dy)||0.0001; const m=Math.min(1,d/joy.R), nx=dx/d, ny=dy/d; joy.vx=nx*m; joy.vy=ny*m; const kd=Math.min(d,joy.R); knob.style.transform='translate('+(nx*kd)+'px,'+(ny*kd)+'px)'; }
+  function joyEnd(e){ if(e&&joy.id!==e.pointerId)return; joy.id=null; joy.vx=0; joy.vy=0; knob.style.transform='translate(0,0)'; }
+  joyEl.addEventListener('pointerdown',e=>{e.preventDefault(); try{joyEl.setPointerCapture(e.pointerId);}catch(_){ } joyStart(e);});
+  joyEl.addEventListener('pointermove',e=>{e.preventDefault(); joyMove(e);});
+  joyEl.addEventListener('pointerup',joyEnd); joyEl.addEventListener('pointercancel',joyEnd);
   document.getElementById('swingBtn').addEventListener('pointerdown',e=>{e.preventDefault();act();});
   document.getElementById('vidClose').addEventListener('click',e=>{e.preventDefault();closeVideo();});
   cv.addEventListener('pointerdown',e=>{ if(['title','roam','ready','pitch','miss','out','bbqTalk'].includes(state)){e.preventDefault();act();} },{passive:false});
