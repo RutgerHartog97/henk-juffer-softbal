@@ -193,10 +193,10 @@
     ctx.fillStyle='#479455';for(let i=0;i<8;i++)ctx.fillRect(0,72+i*54,W,27);
     ctx.fillStyle='#D1A05B';ctx.beginPath();ctx.moveTo(320,188);ctx.lineTo(496,320);ctx.lineTo(320,452);ctx.lineTo(144,320);ctx.closePath();ctx.fill();
     ctx.fillStyle='#4C9E5A';ctx.beginPath();ctx.moveTo(320,232);ctx.lineTo(452,320);ctx.lineTo(320,408);ctx.lineTo(188,320);ctx.closePath();ctx.fill();
-    drawBloodPuddle();   // puddle on the dirt, beneath the chalk lines and bases
     ctx.strokeStyle='#F4F4E8';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(HOME.x,HOME.y);ctx.lineTo(FIRST.x,FIRST.y);ctx.lineTo(SECOND.x,SECOND.y);ctx.lineTo(THIRD.x,THIRD.y);ctx.closePath();ctx.stroke();
     ctx.fillStyle='#C89350';ctx.beginPath();ctx.ellipse(MOUND.x,MOUND.y,30,12,0,0,7);ctx.fill();
     const base=(b,sz)=>{ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.PI/4);ctx.fillStyle='#F4F4E8';ctx.fillRect(-sz/2,-sz/2,sz,sz);ctx.restore();};
+    drawBloodPuddle();   // over the chalk base lines, under the bases
     base(FIRST,20);base(SECOND,20);base(THIRD,20);base(HOME,24);
     ctx.fillStyle='#F4F4E8aa';ctx.font="20px 'VT323'";ctx.textAlign='left';ctx.fillText('◀ BBQ',6,250);
   }
