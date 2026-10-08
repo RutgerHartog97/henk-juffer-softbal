@@ -338,8 +338,9 @@
     if(state==='ready'){
       drawField();drawDefense(-1);drawDownedVega();scoreboard();henk(HENK_STANCE,HOME.x-4,HOME.y,2.7,0);
       text('Daar komt ’ie...',320,250,24,'#241f1b');
+      text(TOUCH?'tik om te werpen':'spatie om te werpen',320,286,20,'#2E2E38');
       for(let i=0;i<3;i++){ctx.fillStyle=i<strikes?'#E94B3C':'#ffffff55';ctx.fillRect(292+i*18,462,12,12);}
-      if(ph>READY_MS)go('pitch'); return raf();
+      return raf();
     }
     if(state==='pitch'){
       const p=ph/PITCH_MS; drawField();drawDefense(-1);drawDownedVega();scoreboard();henk(HENK_STANCE,HOME.x-4,HOME.y,2.7,0);
@@ -355,8 +356,9 @@
     if(state==='miss'){
       drawField();drawDefense(-1);drawDownedVega();scoreboard();henk(swingFrame(ph),HOME.x-4,HOME.y,2.7,0);
       stamp('SLAG!',320,250,40,'#E94B3C','#241f1b');
+      text(TOUCH?'tik om verder':'spatie om verder',320,300,20,'#F4F4E8');
       for(let i=0;i<3;i++){ctx.fillStyle=i<strikes?'#E94B3C':'#ffffff55';ctx.fillRect(292+i*18,462,12,12);}
-      if(ph>MISS_MS)go('ready'); return raf();
+      return raf();
     }
     if(state==='play'){
       drawField();drawDefense(play.chaserIdx,play.coverIdx);drawDownedVega();scoreboard();
@@ -452,15 +454,14 @@
     if(state==='bbqTalk'){
       drawBBQ();drawNPCs();chef(CHEF,henkPos.x,henkPos.y,2.3,0);
       if(talkNPC) bubble(talkNPC.x, talkNPC.y-54, Math.max(176,talkLines[0].length*10), 44, talkLines, 20);
-      text('(spatie)',320,H-12,20,'#F4F4E8'); return raf();
+      text(TOUCH?'tik om verder':'(spatie)',320,H-12,20,'#F4F4E8'); return raf();
     }
     if(state==='bbqRage'){
       drawBBQ();drawNPCs();
       if(Math.sin(ph/90)>0){ctx.fillStyle='#E94B3C22';ctx.fillRect(0,0,W,H);}
       chef(CHEF_MAD,henkPos.x,henkPos.y,2.4,Math.sin(ph/70)*3);
       bubble(henkPos.x, henkPos.y-128, 420, 110, SHOUT, 24);
-      text('(spatie)',320,H-12,20,'#F4F4E8');
-      if(ph>2100) startKick();
+      text(TOUCH?'tik om verder':'(spatie)',320,H-12,20,'#F4F4E8');
       return raf();
     }
     if(state==='bbqKick'){
@@ -484,6 +485,8 @@
   function act(){
     switch(state){
       case 'title': startGame();break;
+      case 'ready': go('pitch');break;
+      case 'miss': go('ready');break;
       case 'roam': if(near(henkPos,HOME,34))startAtBat(); else if(vegaOnField&&near(henkPos,BODYPT,48))go('hit2'); break;
       case 'pitch': { const p=(now()-t0)/PITCH_MS,d=Math.abs(p-C);
         if(d<0.12){beginPlay();} else {strikes++; if(strikes>=3){outReason=pick(STRIKE_OUTS);beginOut();}else go('miss');} break; }
