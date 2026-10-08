@@ -30,12 +30,13 @@
   .btn.hidden{display:none;}
   #startBtn{bottom:10%;}
   #touch{position:absolute;inset:0;z-index:9;display:none;} #touch.on{display:block;}
-  .pad{position:absolute;bottom:calc(10px + env(safe-area-inset-bottom));left:calc(10px + env(safe-area-inset-left));width:102px;height:102px;}
+  .pad{position:absolute;bottom:calc(4px + env(safe-area-inset-bottom));left:calc(4px + env(safe-area-inset-left));width:102px;height:102px;}
   .pad button{position:absolute;width:34px;height:34px;background:#241f1bbb;color:#F4C542;border:2px solid #F4C542;font-family:'Press Start 2P',monospace;font-size:11px;padding:0;}
   .pad button:active{background:#F4C542;color:#241f1b;}
   .pad .u{left:34px;top:0;} .pad .d{left:34px;top:68px;} .pad .l{left:0;top:34px;} .pad .r{left:68px;top:34px;}
-  #swingBtn{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom));right:calc(12px + env(safe-area-inset-right));width:76px;height:76px;border-radius:50%;background:#F4C542;border:3px solid #241f1b;color:#241f1b;font-family:'Press Start 2P',monospace;font-size:11px;box-shadow:3px 3px 0 #241f1b;}
+  #swingBtn{position:absolute;bottom:calc(5px + env(safe-area-inset-bottom));right:calc(5px + env(safe-area-inset-right));width:76px;height:76px;border-radius:50%;background:#F4C542;border:3px solid #241f1b;color:#241f1b;font-family:'Press Start 2P',monospace;font-size:11px;box-shadow:3px 3px 0 #241f1b;}
   #swingBtn:active{transform:translate(2px,2px);box-shadow:1px 1px 0 #241f1b;}
+  @media (orientation:landscape){ body{padding:0;} #stage{width:min(100vw,133.3dvh);} }
 </style>
 </head>
 <body>
@@ -52,8 +53,8 @@
   <div id="vid" class="hidden">
     <div id="vidmsg">
       <div class="hr">⚾ HOME RUN! ⚾</div>
-      <div class="sub">Henk raakt 'm écht!<br>De video opent vanzelf in een nieuw tabblad.</div>
-      <a id="vidLink" href="https://www.youtube.com/watch?v=HtxOsOuY7hA&t=25s" target="_blank" rel="noopener">Niks gebeurd? Klik hier ↗</a>
+      <div class="sub">Henk raakt 'm écht!</div>
+      <a id="vidWatch" class="btn" href="https://www.youtube.com/watch?v=HtxOsOuY7hA&t=25s" target="_blank" rel="noopener">▶ BEKIJK DE VIDEO</a>
     </div>
     <button id="vidClose" class="btn">VERDER ▶</button>
   </div>
@@ -297,7 +298,7 @@
   function beginOut(){outs++;go('out');}
   function advanceFromOut(){if(outs>=3){inning++;outs=0;}henkPos={x:HOME.x,y:HOME.y+4};go('roam');}
   function startKick(){ if(talkNPC){talkNPC.gone=true;downedColors={hair:talkNPC.hair,shirt:talkNPC.shirt,pants:talkNPC.pants};} go('bbqKick'); }
-  function showVideo(){ if(TOUCH){ window.location.href=VIDEO_URL; return; } state='video'; document.getElementById('vid').classList.remove('hidden'); }
+  function showVideo(){ state='video'; document.getElementById('vid').classList.remove('hidden'); }
   function closeVideo(){ document.getElementById('vid').classList.add('hidden'); henkPos={x:HOME.x,y:HOME.y+4}; go('roam'); }
 
   function moveVec(){
