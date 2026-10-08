@@ -1,0 +1,521 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<!doctype html>
+<html lang="nl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Henk Juffer Softbal</title>
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&display=swap" rel="stylesheet">
+<style>
+  :root{ color-scheme: dark; }
+  html,body{margin:0;height:100%;background:#15151b;}
+  body{display:flex;align-items:center;justify-content:center;min-height:100dvh;font-family:'VT323',monospace;
+    -webkit-user-select:none;user-select:none;touch-action:none;overscroll-behavior:none;padding:10px;box-sizing:border-box;overflow:hidden;}
+  #stage{position:relative;width:min(96vw,640px);aspect-ratio:4/3;image-rendering:pixelated;box-shadow:0 0 0 4px #241f1b,0 18px 40px #0008;}
+  canvas{position:absolute;inset:0;width:100%;height:100%;image-rendering:pixelated;display:block;}
+  .scan{position:absolute;inset:0;pointer-events:none;z-index:5;background:repeating-linear-gradient(#0000001f 0 2px,#00000000 2px 4px);}
+  #vid{position:absolute;inset:0;z-index:20;background:#0a1020ee;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:20px;box-sizing:border-box;text-align:center;}
+  #vid.hidden{display:none;}
+  #vidmsg{display:flex;flex-direction:column;gap:14px;align-items:center;max-width:92%;}
+  #vidmsg .hr{font-family:'Press Start 2P',monospace;color:#F4C542;font-size:clamp(20px,6vw,36px);text-shadow:4px 4px 0 #241f1b;}
+  #vidmsg .sub{font-family:'VT323',monospace;color:#F4F4E8;font-size:clamp(18px,4.2vw,26px);line-height:1.1;}
+  #vidLink{font-family:'VT323',monospace;color:#9cd;font-size:21px;}
+  #vidWatch{position:static;transform:none;text-decoration:none;}
+  #vidWatch:active{transform:translate(4px,4px);box-shadow:0 0 0 #241f1b;}
+  #vidClose{position:static;transform:none;}
+  #vidClose:active{transform:translate(4px,4px);box-shadow:0 0 0 #241f1b;}
+  .btn{position:absolute;z-index:10;left:50%;transform:translateX(-50%);font-family:'Press Start 2P',monospace;background:#F4C542;color:#241f1b;
+    border:4px solid #241f1b;box-shadow:5px 5px 0 #241f1b;padding:14px 18px;font-size:clamp(11px,2.6vw,15px);cursor:pointer;}
+  .btn:active{transform:translate(-50%,0) translate(5px,5px);box-shadow:0 0 0 #241f1b;}
+  .btn.hidden{display:none;}
+  #startBtn{bottom:10%;}
+  #touch{position:absolute;inset:0;z-index:9;display:none;} #touch.on{display:block;}
+  .pad{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom));left:calc(12px + env(safe-area-inset-left));width:132px;height:132px;}
+  .pad button{position:absolute;width:44px;height:44px;background:#241f1bcc;color:#F4C542;border:3px solid #F4C542;font-family:'Press Start 2P',monospace;font-size:13px;padding:0;}
+  .pad button:active{background:#F4C542;color:#241f1b;}
+  .pad .u{left:44px;top:0;} .pad .d{left:44px;top:88px;} .pad .l{left:0;top:44px;} .pad .r{left:88px;top:44px;}
+  #swingBtn{position:absolute;bottom:calc(24px + env(safe-area-inset-bottom));right:calc(16px + env(safe-area-inset-right));width:100px;height:100px;border-radius:50%;background:#F4C542;border:4px solid #241f1b;color:#241f1b;font-family:'Press Start 2P',monospace;font-size:13px;box-shadow:4px 4px 0 #241f1b;}
+  #swingBtn:active{transform:translate(2px,2px);box-shadow:2px 2px 0 #241f1b;}
+  @media (max-width:560px){
+    .pad{transform:scale(1.15);transform-origin:bottom left;}
+    #swingBtn{transform:scale(1.12);transform-origin:bottom right;}
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <canvas id="game" width="640" height="480"></canvas>
+  <button id="startBtn" class="btn">START</button>
+  <div id="touch">
+    <div class="pad">
+      <button class="u" data-dir="up">▲</button><button class="d" data-dir="down">▼</button>
+      <button class="l" data-dir="left">◀</button><button class="r" data-dir="right">▶</button>
+    </div>
+    <button id="swingBtn">OK</button>
+  </div>
+  <div id="vid" class="hidden">
+    <div id="vidmsg">
+      <div class="hr">⚾ HOME RUN! ⚾</div>
+      <div class="sub">Henk raakt 'm écht!<br>De video opent vanzelf in een nieuw tabblad.</div>
+      <a id="vidLink" href="https://www.youtube.com/watch?v=HtxOsOuY7hA&t=25s" target="_blank" rel="noopener">Niks gebeurd? Klik hier ↗</a>
+    </div>
+    <button id="vidClose" class="btn">VERDER ▶</button>
+  </div>
+  <div class="scan"></div>
+</div>
+<script>
+(() => {
+  const cv=document.getElementById('game'), ctx=cv.getContext('2d'); ctx.imageSmoothingEnabled=false;
+  const startBtn=document.getElementById('startBtn'), touchUI=document.getElementById('touch');
+  const W=640,H=480;
+  const TOUCH=matchMedia('(pointer:coarse)').matches;
+
+  // ---------- palette ----------
+  const OL='#20160F',HAT='#F4C542',HATL='#FFE488',HATD='#C99A2E',SK='#E8B792',SKD='#C98F6B',MUS='#4A3B2A',
+    VEST='#F28C28',VESTL='#FBA94E',VESTD='#C96E1E',REF='#FFE9A8',TEE='#AEB6BF',TEED='#8A929B',
+    JEAN='#3C5E92',JEAND='#2C4468',JEANL='#4E78B0',BOOT='#6A4327',BOOTD='#4A2E18',BELT='#3A2A1A',EYE='#F7F2E8',
+    BLK='#1C1C22',BLKL='#33333C',BLKD='#0E0E12',HAIR='#9A6B3F',HAIRL='#B98B5A';
+
+  // ---------- Henk (detailed, body h=40) ----------
+  const HENK_BODY=[
+    // short light-brown hair (not spiky)
+    [9,6,10,2,HAIR],[8,8,12,2,HAIR],[11,5,4,1,HAIR],
+    [7,9,1,2,HAIR],[20,9,1,2,HAIR],[8,10,1,1,HAIR],[19,10,1,1,HAIR],
+    [10,6,5,1,HAIRL],[12,5,2,1,HAIRL],[16,7,2,1,HAIRL],[13,6,1,3,'#7A512E'],
+    // face
+    [9,9,10,9,SK],[8,10,1,7,OL],[19,10,1,7,OL],[9,9,10,1,SKD],[8,12,1,3,SK],[19,12,1,3,SK],
+    // nerdy see-through glasses (eyes visible behind lenses)
+    [10,13,2,2,EYE],[15,13,2,2,EYE],[11,13,1,2,OL],[16,13,1,2,OL],
+    [9,12,4,1,'#2F7BD6'],[9,15,4,1,'#2F7BD6'],[9,12,1,4,'#2F7BD6'],[12,12,1,4,'#2F7BD6'],
+    [15,12,4,1,'#2F7BD6'],[15,15,4,1,'#2F7BD6'],[15,12,1,4,'#2F7BD6'],[18,12,1,4,'#2F7BD6'],
+    [13,13,2,1,'#2F7BD6'],[8,13,1,1,'#2F7BD6'],[19,13,1,1,'#2F7BD6'],
+    [10,12,1,1,'#EAF2FA'],[15,12,1,1,'#EAF2FA'],
+    // nose + mustache
+    [13,15,2,2,SKD],[10,17,8,2,MUS],[10,17,8,1,'#5C4A33'],[11,19,6,1,SKD],
+    [12,19,4,1,SK],
+    // black top
+    [7,20,14,11,BLK],[7,20,3,1,BLKL],[16,20,3,1,BLKL],[20,20,1,11,BLKD],
+    [6,20,1,11,OL],[21,20,1,11,OL],[10,20,8,1,BLKD],[13,20,1,9,BLKL],
+    // arms
+    [5,21,2,9,BLK],[5,21,1,9,OL],[5,30,2,2,SK],
+    [22,21,2,9,BLK],[23,21,1,9,OL],[22,30,2,2,SK],
+    // tool belt
+    [6,30,16,2,'#5A3A22'],[6,30,16,1,'#6E4A2C'],
+    [13,30,2,2,'#C9A24A'],[13,30,2,1,'#E3C878'],
+    [7,31,4,3,'#6E4A2C'],[7,33,4,1,'#3E2816'],
+    [17,31,4,3,'#6E4A2C'],[17,33,4,1,'#3E2816'],
+    [18,29,3,2,'#AEB4BB'],[19,31,1,4,'#8A5A2B'],
+    [7,30,1,5,'#C94B2E'],[7,30,1,1,'#E6E6E6'],
+    // black pants
+    [8,33,5,5,BLK],[8,33,1,5,BLKL],[12,33,1,5,BLKD],
+    [15,33,5,5,BLK],[15,33,1,5,BLKL],[19,33,1,5,BLKD],
+    [13,33,2,5,'#000000'],
+    // black boots
+    [7,37,6,3,'#141418'],[7,37,6,1,'#2A2A30'],[7,39,6,1,'#000000'],
+    [15,37,6,3,'#141418'],[15,37,6,1,'#2A2A30'],[15,39,6,1,'#000000'],
+  ];
+  const BAT_STANCE=[[21,19,3,2,SK],[20,18,2,2,'#7A4E27'],[21,15,2,3,'#9A6A3C'],[22,11,2,4,'#B97C3E'],[23,7,3,4,'#8A5A2B'],[23,7,3,1,'#A9713C']];
+  const BAT_CONTACT=[[8,22,3,2,SK],[6,22,2,2,'#7A4E27'],[1,21,6,3,'#B97C3E'],[1,21,6,1,'#C98A4B'],[0,20,2,4,'#8A5A2B'],[9,19,4,1,'#F4F4E8']];
+  const BAT_FOLLOW=[[9,24,3,2,SK],[6,25,3,2,'#7A4E27'],[1,26,6,3,'#B97C3E'],[0,27,2,3,'#8A5A2B']];
+  const HENK_STANCE=[...HENK_BODY,...BAT_STANCE], HENK_CONTACT=[...HENK_BODY,...BAT_CONTACT],
+        HENK_FOLLOW=[...HENK_BODY,...BAT_FOLLOW], HENK_RUN=HENK_BODY, HENK_SAD=HENK_BODY;
+
+  // ---------- Chef (h=44) ----------
+  const CHEF=[
+    [8,0,12,2,'#FFFFFF'],[9,0,3,1,'#FFFFFF'],[7,2,14,4,'#FFFFFF'],[8,2,5,1,'#FFFFFF'],[7,5,14,1,'#E6E6E6'],
+    [7,6,14,3,'#FDFDFD'],[7,9,14,2,'#ECECEC'],[7,6,1,5,'#D9D9D9'],[20,6,1,5,'#D9D9D9'],
+    [9,11,10,8,SK],[8,12,1,6,OL],[19,12,1,6,OL],[9,11,10,1,SKD],
+    [10,13,3,1,MUS],[15,13,3,1,MUS],[10,14,3,2,EYE],[15,14,3,2,EYE],[11,14,2,2,OL],[16,14,2,2,OL],
+    [13,15,2,2,SKD],[10,17,8,2,MUS],[12,19,4,1,SK],
+    [9,19,10,2,'#C0392B'],[9,19,10,1,'#D9534F'],
+    [7,20,14,13,'#FFFFFF'],[20,20,1,13,'#E3E3E3'],[6,20,1,13,OL],[21,20,1,13,OL],
+    [9,22,2,2,'#D0D0D0'],[17,22,2,2,'#D0D0D0'],[9,26,2,2,'#D0D0D0'],[17,26,2,2,'#D0D0D0'],[9,30,2,2,'#D0D0D0'],[17,30,2,2,'#D0D0D0'],
+    [13,20,2,13,'#EDEDED'],
+    [5,21,2,10,'#FFFFFF'],[5,20,1,11,OL],[5,31,2,2,SK],[22,21,2,10,'#FFFFFF'],[23,20,1,11,OL],[22,31,2,2,SK],
+    [8,33,5,8,'#D8DBDF'],[15,33,5,8,'#D8DBDF'],[9,34,2,2,'#AEB4BB'],[16,36,2,2,'#AEB4BB'],[11,38,2,2,'#AEB4BB'],[16,34,2,2,'#AEB4BB'],
+    [8,33,1,8,'#BFC4CA'],[15,33,1,8,'#BFC4CA'],
+    [7,41,6,3,'#20160F'],[15,41,6,3,'#20160F'],[7,41,6,1,'#3A3A3A'],[15,41,6,1,'#3A3A3A'],
+  ];
+  const CHEF_MAD=[
+    [8,0,12,2,'#FFFFFF'],[7,2,14,4,'#FFFFFF'],[7,5,14,1,'#E6E6E6'],[7,6,14,3,'#FDFDFD'],[7,9,14,2,'#ECECEC'],
+    [9,11,10,8,'#E24B3C'],[8,12,1,6,OL],[19,12,1,6,OL],[16,12,2,5,'#C23A2C'],
+    [10,12,3,1,OL],[15,12,3,1,OL],[11,13,2,2,EYE],[15,13,2,2,EYE],[11,13,2,1,OL],[15,13,2,1,OL],
+    [12,16,4,3,'#5A1A12'],[12,18,4,1,'#C23A2C'],[9,19,10,2,'#C0392B'],
+    [7,20,14,13,'#FFFFFF'],[20,20,1,13,'#E3E3E3'],[6,20,1,13,OL],[21,20,1,13,OL],
+    [9,22,2,2,'#D0D0D0'],[17,22,2,2,'#D0D0D0'],[9,26,2,2,'#D0D0D0'],[17,26,2,2,'#D0D0D0'],[13,20,2,13,'#EDEDED'],
+    [3,16,2,10,'#FFFFFF'],[3,15,2,2,SK],[2,15,1,2,OL],[23,16,2,10,'#FFFFFF'],[23,15,2,2,SK],[25,15,1,2,OL],
+    [8,33,5,8,'#D8DBDF'],[15,33,5,8,'#D8DBDF'],[7,41,6,3,'#20160F'],[15,41,6,3,'#20160F'],
+  ];
+  const BALL=[[2,1,6,8,'#F2EFA0'],[1,2,8,6,'#F2EFA0'],[1,2,8,1,'#FBF8C8'],[1,7,8,1,'#CFCB7A'],[3,2,1,6,'#E94B3C'],[6,2,1,6,'#E94B3C']];
+
+  function sprite(data,ox,oy,s){ for(const r of data){ ctx.fillStyle=r[4]; ctx.fillRect(ox+r[0]*s,oy+r[1]*s,r[2]*s,r[3]*s);} }
+  function henk(data,x,y,s,bob){ sprite(data,x-14*s,y-40*s-(bob||0),s);
+    const ty=y-40*s-(bob||0)+24.5*s;   // chest wordmark on the left breast
+    ctx.textAlign='center';ctx.fillStyle='#CBD2D9';ctx.font=Math.max(6,Math.round(s*2.3))+"px 'VT323'";
+    ctx.fillText('de vreeden', x+1.5*s, ty);
+  }
+  function henkAt(data,cx,cy,s,rot){ ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);sprite(data,-14*s,-20*s,s);ctx.restore(); }
+  function chef(data,x,y,s,bob){ sprite(data,x-14*s,y-44*s-(bob||0),s); }
+  function ball(x,y,s){ sprite(BALL,x-5*s,y-5*s,s); }
+  function fielder(x,y,s,cap,shirt){
+    sprite([[5,0,6,1,OL],[4,1,8,1,cap],[4,2,2,1,cap],[12,3,3,1,cap],
+      [5,3,6,4,SK],[5,3,6,1,SKD],[6,4,1,1,OL],[9,4,1,1,OL],
+      [4,7,8,8,shirt],[4,7,8,1,'#ffffff33'],[3,8,2,5,shirt],[11,8,2,5,shirt],
+      [11,11,3,3,'#6A4327'],[11,11,3,1,'#8A5A33'],[3,13,2,2,SK],
+      [5,15,3,7,'#2C4468'],[8,15,3,7,'#2C4468'],[5,15,1,7,'#3A5680'],
+      [5,22,3,2,OL],[8,22,3,2,OL]], x-8*s,y-22*s,s);
+  }
+  function bodyRects(hair,shirt,pants){ return [
+    [4,0,8,1,hair],[4,1,8,1,hair],[11,1,1,2,hair],[4,1,1,2,hair],
+    [5,2,6,4,SK],[5,2,6,1,SKD],[6,4,1,1,OL],[9,4,1,1,OL],[5,6,6,1,SKD],
+    [4,7,8,8,shirt],[4,7,8,1,'#ffffff30'],[11,7,1,8,'#00000030'],
+    [3,8,2,5,shirt],[11,8,2,5,shirt],[3,13,2,2,SK],[11,13,2,2,SK],
+    [5,15,3,7,pants],[8,15,3,7,pants],[5,15,1,7,'#ffffff22'],
+    [5,22,3,2,OL],[8,22,3,2,OL]]; }
+  function person(x,y,s,hair,shirt,pants,scared){
+    const ex=scared?[[6,6,4,1,OL]]:[];
+    sprite([...bodyRects(hair,shirt,pants),...ex], x-8*s,y-24*s,s);
+  }
+  function personAt(cx,cy,s,rot,hair,shirt,pants){ ctx.save();ctx.translate(cx,cy);ctx.rotate(rot);sprite(bodyRects(hair,shirt,pants),-8*s,-12*s,s);ctx.restore(); }
+
+  function text(str,x,y,size,color,font,align){ ctx.fillStyle=color;ctx.textAlign=align||'center';ctx.textBaseline='alphabetic';ctx.font=size+"px '"+(font||'VT323')+"'";ctx.fillText(str,x,y); }
+  function stamp(str,x,y,size,color,sh){ ctx.textAlign='center';ctx.font=size+"px 'Press Start 2P'";ctx.fillStyle=sh;ctx.fillText(str,x+4,y+4);ctx.fillStyle=color;ctx.fillText(str,x,y); }
+  function bubble(cx,cy,w,h,lines,size){
+    cx=Math.max(w/2+6,Math.min(W-w/2-6,cx));
+    ctx.fillStyle='#F4F4E8';ctx.fillRect(cx-w/2,cy-h,w,h);
+    ctx.fillStyle='#241f1b';ctx.fillRect(cx-w/2,cy-h,w,3);ctx.fillRect(cx-w/2,cy-3,w,3);ctx.fillRect(cx-w/2,cy-h,3,h);ctx.fillRect(cx+w/2-3,cy-h,3,h);
+    ctx.fillRect(cx-5,cy,10,8);
+    lines.forEach((l,i)=> text(l,cx,cy-h+(h-6)/(lines.length+1)*(i+1)+size*0.35, size,'#241f1b'));
+  }
+
+  // ---------- geometry ----------
+  const HOME={x:320,y:430},FIRST={x:474,y:320},SECOND={x:320,y:206},THIRD={x:166,y:320},MOUND={x:320,y:318},BODYPT={x:338,y:216};
+  const DEF=[[MOUND.x,MOUND.y-6],[320,462],[498,330],[258,250],[384,250],[150,300],[128,150],[320,104],[512,150]];
+  const lp=(a,b,t)=>{t=Math.max(0,Math.min(1,t));return {x:a.x+(b.x-a.x)*t,y:a.y+(b.y-a.y)*t};};
+  const arc=(a,b,t,h)=>{const p=lp(a,b,t);p.y-=Math.sin(Math.max(0,Math.min(1,t))*Math.PI)*h;return p;};
+  const near=(a,b,r)=>Math.hypot(a.x-b.x,a.y-b.y)<r;
+  const pick=a=>a[Math.floor(Math.random()*a.length)];
+  function nearestDefIdx(t){let bi=0,bd=1e9;DEF.forEach((d,i)=>{const dd=Math.hypot(d[0]-t.x,d[1]-t.y);if(dd<bd){bd=dd;bi=i;}});return bi;}
+
+  function drawField(){
+    ctx.fillStyle='#4C9E5A';ctx.fillRect(0,56,W,H-56);
+    ctx.fillStyle='#479455';for(let i=0;i<8;i++)ctx.fillRect(0,72+i*54,W,27);
+    ctx.fillStyle='#D1A05B';ctx.beginPath();ctx.moveTo(320,188);ctx.lineTo(496,320);ctx.lineTo(320,452);ctx.lineTo(144,320);ctx.closePath();ctx.fill();
+    ctx.fillStyle='#4C9E5A';ctx.beginPath();ctx.moveTo(320,232);ctx.lineTo(452,320);ctx.lineTo(320,408);ctx.lineTo(188,320);ctx.closePath();ctx.fill();
+    ctx.strokeStyle='#F4F4E8';ctx.lineWidth=4;ctx.beginPath();ctx.moveTo(HOME.x,HOME.y);ctx.lineTo(FIRST.x,FIRST.y);ctx.lineTo(SECOND.x,SECOND.y);ctx.lineTo(THIRD.x,THIRD.y);ctx.closePath();ctx.stroke();
+    ctx.fillStyle='#C89350';ctx.beginPath();ctx.ellipse(MOUND.x,MOUND.y,30,12,0,0,7);ctx.fill();
+    const base=(b,sz)=>{ctx.save();ctx.translate(b.x,b.y);ctx.rotate(Math.PI/4);ctx.fillStyle='#F4F4E8';ctx.fillRect(-sz/2,-sz/2,sz,sz);ctx.restore();};
+    base(FIRST,20);base(SECOND,20);base(THIRD,20);base(HOME,24);
+    ctx.fillStyle='#F4F4E8aa';ctx.font="20px 'VT323'";ctx.textAlign='left';ctx.fillText('◀ BBQ',6,250);
+  }
+  function drawDefense(skipA,skipB){ DEF.forEach((d,i)=>{ if(i!==skipA && i!==skipB) fielder(d[0],d[1],2.0,'#B23B3B','#DDE3EA'); }); }
+  function drawDownedVega(){
+    if(!vegaOnField)return;
+    ctx.fillStyle='#8E1B1B';ctx.beginPath();ctx.ellipse(338,222,30+hitCount*4,12+hitCount,0,0,7);ctx.fill();
+    ctx.fillStyle='#C62828';ctx.beginPath();ctx.ellipse(336,221,20,7,0,0,7);ctx.fill();
+    ctx.fillStyle='#8E1B1B';const spots=[[362,226],[300,224],[356,210],[312,232],[372,218],[296,214],[344,232]];
+    for(let i=0;i<Math.min(spots.length,2+hitCount);i++) ctx.fillRect(spots[i][0],spots[i][1],5,5);
+    personAt(330,214,2.1,Math.PI/2,downedColors.hair,downedColors.shirt,downedColors.pants);
+    text('x   x',330,206,14,'#241f1b');
+  }
+  function scoreboard(){
+    ctx.fillStyle='#1B1B22';ctx.fillRect(0,0,W,56);
+    text('UIT',16,36,12,'#E8E8E8','Press Start 2P','left');
+    for(let i=0;i<3;i++){ctx.fillStyle=i<outs?'#E94B3C':'#2E2E38';ctx.fillRect(74+i*18,24,12,12);}
+    text('INN '+inning,W-16,36,12,'#9AA3AD','Press Start 2P','right');
+  }
+
+  // ---------- bbq ----------
+  const NPCS=[
+    {x:150,y:250,hair:'#3a2a18',shirt:'#2E6DB4',pants:'#3B3B46',line:["Hamburgers! Lekker veel."],talked:false,isVega:false,gone:false},
+    {x:470,y:235,hair:'#7a5230',shirt:'#B23B3B',pants:'#2C2C34',line:["Doe mij maar een hamburger."],talked:false,isVega:false,gone:false},
+    {x:235,y:385,hair:'#d9c27a',shirt:'#E0A93B',pants:'#394A5A',line:["Gewoon hamburgers, Henk."],talked:false,isVega:false,gone:false},
+    {x:360,y:432,hair:'#8a3a2a',shirt:'#6A4AB0',pants:'#2C2C34',line:["Hamburger. Met kaas graag!"],talked:false,isVega:false,gone:false},
+    {x:505,y:392,hair:'#2a2a2a',shirt:'#6A8A3C',pants:'#6B4A2A',line:["Lekkere hamburger, Henk!"],talked:false,isVega:false,gone:false},
+  ];
+  const VEGA_LINE=["Eh... ik eet eigenlijk geen vlees."];
+  function drawBBQ(){
+    ctx.fillStyle='#8FC9E8';ctx.fillRect(0,0,W,120);
+    ctx.fillStyle='#9A6A3C';ctx.fillRect(0,64,W,46);
+    ctx.fillStyle='#7C5430';for(let x=0;x<W;x+=26)ctx.fillRect(x,64,3,46);
+    ctx.fillStyle='#B07E46';ctx.fillRect(0,64,W,4);ctx.fillRect(0,86,W,4);
+    ctx.fillStyle='#4C9E5A';ctx.fillRect(0,110,W,H-110);
+    ctx.fillStyle='#479455';for(let i=0;i<6;i++)ctx.fillRect(0,130+i*56,W,28);
+    const gx=320,gy=160;
+    ctx.fillStyle='#2a2a2a';ctx.fillRect(gx-20,gy-6,40,14);ctx.fillStyle='#3a3a3a';ctx.fillRect(gx-20,gy-16,40,10);
+    ctx.fillStyle='#555';ctx.fillRect(gx-16,gy+8,4,14);ctx.fillRect(gx+12,gy+8,4,14);
+    ctx.fillStyle='#E94B3C';ctx.fillRect(gx-14,gy-4,28,3);
+    const s=performance.now()/260;ctx.fillStyle='#ffffff88';
+    for(let i=0;i<4;i++){const yy=gy-20-i*12-((s*8+i*6)%18);ctx.fillRect(gx-6+Math.sin(s+i)*6,yy,6,6);}
+    ctx.fillStyle='#8A5A2B';ctx.fillRect(70,300,90,16);ctx.fillRect(74,316,6,22);ctx.fillRect(150,316,6,22);
+    ctx.fillStyle='#A9713C';ctx.fillRect(70,296,90,5);
+    ctx.fillStyle='#F4F4E8aa';ctx.font="20px 'VT323'";ctx.textAlign='right';ctx.fillText('veld ▶',W-6,250);
+  }
+  function drawNPCs(){ for(const n of NPCS){ if(n.gone)continue; person(n.x,n.y,2.3,n.hair,n.shirt,n.pants, state==='bbqRage'&&n===talkNPC); } }
+
+  // ---------- state ----------
+  let state='title', t0=0, last=0, bob=0;
+  let inning=1, outs=0, strikes=0;
+  let henkPos={x:HOME.x,y:HOME.y};
+  const keys={}, touchDir={};
+  let play=null, outReason='', talkLines=null, nearNPC=null, talkNPC=null;
+  let vegaOnField=false, talkedCount=0, vegaDone=false, hitCount=0;
+  let downedColors={hair:'#2a2a2a',shirt:'#6A8A3C',pants:'#6B4A2A'};
+  const PITCH_MS=1600,READY_MS=850,MISS_MS=760;
+  const C=0.84; // sweet spot = ball just before the plate
+  const VIDEO_URL='https://www.youtube.com/watch?v=HtxOsOuY7hA&t=25s';
+  const HIT=900,THROW1=650,OUT1_T=1550,FLY_OUT=1300,SEC_F=1000,SEC_S=1000,SEC_OUT=2000,SEC_THROW=1250,KICK_MS=1100,WHACK_MS=680;
+  const now=()=>performance.now();
+
+  const FLY_OUTS=["Hoge bal — gevangen! Zwak, hoor.","Gevangen. Mooi cadeautje, Henk.","Vangbal. Noem je dat slaan?","Hoog en nutteloos. Gepakt."];
+  const GROUND_OUTS=["Nipt uit op 1! Te traag, Henk.","De worp is er nét eerder. Ren 's door.","Uitgetikt bij 1. M'n oma is sneller.","Rollertje... uit. Gênant."];
+  const SECOND_OUTS=["Doorgestuurd naar 2... en getikt. Uit!","Te gretig. Uit op het tweede honk.","Hij wil te veel — uit op 2, sukkel."];
+  const BOUNCE_OUTS=["De bal stuitert... maar de tag op 2 is er net. Uit!","Hij gokt op 2 en verliest. Uit.","Mooie stuiter — toch getikt op 2."];
+  const TRIPLE_OUTS=["Hij gaat voor drie... getikt op het derde honk! Uit.","Veel te hebberig — uit op 3.","Bijna een driehonkslag. Toch uit op 3, Henk."];
+  const TRIP_OUTS=["Henk struikelt over z'n eigen voeten. Uit.","Daar gaat 'ie onderuit. Uit.","Hij valt pardoes. Uit, natuurlijk."];
+  const STRIKE_OUTS=["Slag drie! Je zwaaide naar lucht.","Nakijkslag. Stond je te slapen?","Drie keer mis. Beschamend, Henk."];
+  const CALLS=["KNAL!","PLOK!","TIK!","RAAK!"];
+  const OUTFIELD=[[128,150],[320,104],[512,150],[220,130],[430,130]];
+  const INFIELD=[[258,250],[384,250],[180,290],[430,300],[MOUND.x,MOUND.y-10]];
+  const SHOUT=["ALTIJD DIE KLOTE VEGA'S,","STUK GRAS KAN JIJ KRIJGEN","HONDENLUL!!"];
+  const swingFrame=e=> e<120?HENK_CONTACT:HENK_FOLLOW;
+
+  function go(s){state=s;t0=now();startBtn.classList.toggle('hidden',s!=='title');}
+  function startGame(){inning=1;outs=0;strikes=0;henkPos={x:HOME.x,y:HOME.y+4};go('roam');}
+  function startAtBat(){henkPos={x:HOME.x,y:HOME.y};strikes=0;go('ready');}
+  function beginPlay(){
+    if(Math.random()<0.10){ try{window.open(VIDEO_URL,'_blank');}catch(e){} play={scenario:'homerun',call:pick(CALLS)}; return go('homerun'); } // rare dinger: open video within the swing gesture so it isn't blocked
+    const ground=Math.random()<0.6;
+    const tt=pick(ground?INFIELD:OUTFIELD), target={x:tt[0],y:tt[1]};
+    const scenario = !ground?pick(['fly','bounce','triple']):pick(['out1','out1','second','trip']);
+    const reason = scenario==='fly'?pick(FLY_OUTS):scenario==='out1'?pick(GROUND_OUTS):scenario==='second'?pick(SECOND_OUTS):scenario==='bounce'?pick(BOUNCE_OUTS):scenario==='triple'?pick(TRIPLE_OUTS):pick(TRIP_OUTS);
+    const ci=nearestDefIdx(target);
+    let coverIdx=-1, coverBase=null, coverArrive=SEC_THROW;
+    if(scenario==='second'||scenario==='bounce'){ coverBase=SECOND; coverIdx=(ci===4)?3:4; } // 2B covers 2nd (SS if 2B fields it)
+    else if(scenario==='triple'){ coverBase=THIRD; coverIdx=(ci===5)?3:5; coverArrive=2250; } // 3B covers 3rd
+    play={scenario,target,chaserFrom:{x:DEF[ci][0],y:DEF[ci][1]},chaserIdx:ci,
+          coverIdx,coverBase,coverArrive,coverFrom:coverIdx>=0?{x:DEF[coverIdx][0],y:DEF[coverIdx][1]}:null,
+          reason,call:pick(CALLS),tripT:600+Math.random()*250};
+    go('play');
+  }
+  function beginOut(){outs++;go('out');}
+  function advanceFromOut(){if(outs>=3){inning++;outs=0;}henkPos={x:HOME.x,y:HOME.y+4};go('roam');}
+  function startKick(){ if(talkNPC){talkNPC.gone=true;downedColors={hair:talkNPC.hair,shirt:talkNPC.shirt,pants:talkNPC.pants};} go('bbqKick'); }
+  function showVideo(){ state='video'; document.getElementById('vid').classList.remove('hidden'); }
+  function closeVideo(){ document.getElementById('vid').classList.add('hidden'); henkPos={x:HOME.x,y:HOME.y+4}; go('roam'); }
+
+  function moveVec(){
+    let vx=0,vy=0;
+    if(keys.ArrowLeft||keys.KeyA||touchDir.left)vx--; if(keys.ArrowRight||keys.KeyD||touchDir.right)vx++;
+    if(keys.ArrowUp||keys.KeyW||touchDir.up)vy--; if(keys.ArrowDown||keys.KeyS||touchDir.down)vy++;
+    if(vx&&vy){vx*=0.707;vy*=0.707;} return {vx,vy};
+  }
+
+  // ---------- render ----------
+  function render(){
+    const tnow=now(), dt=Math.min(50,tnow-last); last=tnow; const ph=tnow-t0;
+
+    if(state==='title'){
+      ctx.fillStyle='#6FB7E0';ctx.fillRect(0,0,W,H);
+      ctx.fillStyle='#F4F4E8';ctx.fillRect(70,46,70,14);ctx.fillRect(90,34,40,14);ctx.fillRect(470,70,80,14);ctx.fillRect(500,60,40,14);
+      ctx.fillStyle='#4C9E5A';ctx.fillRect(0,330,W,150);ctx.fillStyle='#3A7D47';ctx.fillRect(0,320,W,10);
+      text('HENK JUFFER',W/2,128,18,'#241f1b','Press Start 2P'); stamp('SOFTBAL',W/2,188,46,'#F28C28','#241f1b');
+      bob+=0.04; henk(HENK_STANCE,330,372,5.0,Math.sin(bob*2)*3); ball(165,300,4.0);
+      text(TOUCH?'D-pad: lopen   ·   knop: slaan/actie':'Pijltjes: lopen   ·   Spatie: actie',W/2,250,24,'#241f1b');
+      return raf();
+    }
+    if(state==='roam'){
+      const m=moveVec(), sp=140*dt/1000;
+      henkPos.x+=m.vx*sp; henkPos.y=Math.max(150,Math.min(452,henkPos.y+m.vy*sp));
+      if(henkPos.x<30){ henkPos={x:582,y:360}; go('bbq'); return raf(); }
+      henkPos.x=Math.max(30,Math.min(606,henkPos.x));
+      const moving=(m.vx||m.vy); bob+=moving?0.18:0;
+      drawField();drawDefense(-1);drawDownedVega();scoreboard();
+      henk(HENK_RUN,henkPos.x,henkPos.y,2.6,moving?Math.abs(Math.sin(bob))*4:0);
+      const atHome=near(henkPos,HOME,34), atVega=vegaOnField&&near(henkPos,BODYPT,48);
+      if(atHome){ctx.fillStyle='#241f1bcc';ctx.fillRect(170,402,300,30);text('SPATIE: ga slaan',320,424,22,'#F4C542');}
+      else if(atVega){ctx.fillStyle='#241f1bcc';ctx.fillRect(BODYPT.x-96,BODYPT.y+26,192,26);text('SPATIE: mep ’m nog ’s',BODYPT.x,BODYPT.y+44,20,'#F4C542');}
+      else text('Thuisplaat = slaan  ·  links = BBQ',320,H-14,20,'#F4F4E8');
+      return raf();
+    }
+    if(state==='ready'){
+      drawField();drawDefense(-1);drawDownedVega();scoreboard();henk(HENK_STANCE,HOME.x-4,HOME.y,2.7,0);
+      text('Daar komt ’ie...',320,250,24,'#241f1b');
+      for(let i=0;i<3;i++){ctx.fillStyle=i<strikes?'#E94B3C':'#ffffff55';ctx.fillRect(292+i*18,462,12,12);}
+      if(ph>READY_MS)go('pitch'); return raf();
+    }
+    if(state==='pitch'){
+      const p=ph/PITCH_MS; drawField();drawDefense(-1);drawDownedVega();scoreboard();henk(HENK_STANCE,HOME.x-4,HOME.y,2.7,0);
+      ball(MOUND.x+(HOME.x-6-MOUND.x)*p, MOUND.y+(HOME.y-14-MOUND.y)*p, 2.2+p*1.6);
+      const mx=180,my=440,mw=280,mh=18;
+      ctx.fillStyle='#241f1b';ctx.fillRect(mx-4,my-4,mw+8,mh+8);ctx.fillStyle='#3a3a45';ctx.fillRect(mx,my,mw,mh);
+      ctx.fillStyle='#4C9E5A';ctx.fillRect(mx+mw*(C-0.1),my,mw*0.2,mh);ctx.fillStyle='#8CE29A';ctx.fillRect(mx+mw*(C-0.03),my,mw*0.06,mh);
+      const ix=mx+Math.min(1,Math.max(0,p))*mw;ctx.fillStyle='#F4C542';ctx.fillRect(ix-3,my-5,6,mh+10);
+      text('nu!',mx+mw*C,my-10,18,'#F4F4E8');
+      if(p>=1){strikes++; if(strikes>=3){outReason=pick(STRIKE_OUTS);beginOut();} else go('miss');}
+      return raf();
+    }
+    if(state==='miss'){
+      drawField();drawDefense(-1);drawDownedVega();scoreboard();henk(swingFrame(ph),HOME.x-4,HOME.y,2.7,0);
+      stamp('SLAG!',320,250,40,'#E94B3C','#241f1b');
+      for(let i=0;i<3;i++){ctx.fillStyle=i<strikes?'#E94B3C':'#ffffff55';ctx.fillRect(292+i*18,462,12,12);}
+      if(ph>MISS_MS)go('ready'); return raf();
+    }
+    if(state==='play'){
+      drawField();drawDefense(play.chaserIdx,play.coverIdx);drawDownedVega();scoreboard();
+      const cp=lp(play.chaserFrom,play.target,ph/HIT); fielder(cp.x,cp.y,2.0,'#2C2C34','#DDE3EA');
+      if(play.coverIdx>=0){ const cov=lp(play.coverFrom,play.coverBase,ph/play.coverArrive); fielder(cov.x,cov.y,2.0,'#2C2C34','#DDE3EA'); }
+      let bpos,henkP,fallen=false,caption='',outNow=false;
+      if(play.scenario==='fly'){
+        bpos= ph<HIT?arc(HOME,play.target,ph/HIT,92):play.target;
+        henkP=lp(HOME,FIRST,Math.min(0.28,ph/(HIT+400)*0.28));
+        caption= ph<HIT*0.5?play.call:'Hoog de lucht in...'; outNow=ph>FLY_OUT;
+      } else if(play.scenario==='out1'){
+        bpos= ph<HIT?arc(HOME,play.target,ph/HIT,26):lp(play.target,FIRST,(ph-HIT)/THROW1);
+        henkP=lp(HOME,FIRST,Math.min(1,ph/OUT1_T));
+        caption= ph<HIT*0.5?play.call:'Naar het eerste honk!'; outNow=ph>OUT1_T;
+      } else if(play.scenario==='trip'){
+        bpos= ph<HIT?arc(HOME,play.target,ph/HIT,26):play.target;
+        if(ph<play.tripT){henkP=lp(HOME,FIRST,ph/1600);} else {henkP=lp(HOME,FIRST,play.tripT/1600);fallen=true;}
+        caption= ph<HIT*0.5?play.call:(fallen?'Henk struikelt!':'Naar het eerste honk!'); outNow=ph>play.tripT+750;
+      } else if(play.scenario==='bounce'){
+        const bt=t=>{const q=lp(HOME,play.target,t);q.y-=Math.abs(Math.sin(t*Math.PI*3))*34*(1-t);return q;};
+        bpos= ph<HIT?bt(ph/HIT): ph<SEC_THROW?play.target: lp(play.target,SECOND,(ph-SEC_THROW)/(SEC_OUT-SEC_THROW));
+        henkP= ph<SEC_F?lp(HOME,FIRST,ph/SEC_F):lp(FIRST,SECOND,Math.min(1,(ph-SEC_F)/SEC_S));
+        caption= ph<HIT*0.5?play.call:(ph<SEC_F?'Hij stuitert! Naar de 2!':'Pas op bij 2...'); outNow=ph>SEC_OUT;
+      } else if(play.scenario==='triple'){
+        const TRI_THROW=2250, TRI_OUT=3000;
+        const bt=t=>{const q=lp(HOME,play.target,t);q.y-=Math.abs(Math.sin(t*Math.PI*3))*30*(1-t);return q;};
+        bpos= ph<HIT?bt(ph/HIT): ph<TRI_THROW?play.target: lp(play.target,THIRD,(ph-TRI_THROW)/(TRI_OUT-TRI_THROW));
+        henkP= ph<SEC_F?lp(HOME,FIRST,ph/SEC_F): ph<SEC_F+SEC_S?lp(FIRST,SECOND,(ph-SEC_F)/SEC_S): lp(SECOND,THIRD,Math.min(1,(ph-SEC_F-SEC_S)/SEC_S));
+        caption= ph<HIT*0.5?play.call:(ph<SEC_F?'Hij rent! Naar de 2!':ph<SEC_F+SEC_S?'Door naar de 3!':'Te ver... pas op bij 3!'); outNow=ph>TRI_OUT;
+      } else { // second
+        bpos= ph<HIT?arc(HOME,play.target,ph/HIT,26): ph<SEC_THROW?play.target: lp(play.target,SECOND,(ph-SEC_THROW)/(SEC_OUT-SEC_THROW));
+        henkP= ph<SEC_F?lp(HOME,FIRST,ph/SEC_F):lp(FIRST,SECOND,Math.min(1,(ph-SEC_F)/SEC_S));
+        caption= ph<HIT*0.5?play.call:(ph<SEC_F?'Doorlopen! Naar de 2!':'Te ver... pas op!'); outNow=ph>SEC_OUT;
+      }
+      ball(bpos.x,bpos.y,3);
+      if(fallen) henkAt(HENK_SAD,henkP.x,henkP.y+6,2.4,-1.15);
+      else if(ph<260) henk(swingFrame(ph),henkP.x,henkP.y,2.6,0);
+      else henk(HENK_RUN,henkP.x,henkP.y,2.6,Math.abs(Math.sin(ph/80))*4);
+      if(ph<HIT*0.5)stamp(play.call,320,150,38,'#F4C542','#241f1b'); else text(caption,320,H-14,22,'#F4F4E8');
+      if(outNow){outReason=play.reason;beginOut();}
+      return raf();
+    }
+    if(state==='out'){
+      drawField();drawDefense(-1);drawDownedVega();scoreboard();
+      henk(HENK_SAD,HOME.x-4,HOME.y,2.7,0);
+      ctx.fillStyle='#8FB7D4';ctx.fillRect(HOME.x+24,HOME.y-78,3,6); // sweat drop
+      ctx.fillStyle='#00000055';ctx.fillRect(0,150,W,170);
+      ctx.save();ctx.translate(320,225);ctx.rotate(-0.1);stamp('UIT!',0,0,74,'#E94B3C','#241f1b');ctx.restore();
+      text(outReason,320,290,24,'#F4F4E8');
+      text(outs>=3?'Drie uit — wissel. (spatie)':'Volgende slagman (spatie)',320,H-16,22,'#F4F4E8');
+      return raf();
+    }
+    if(state==='hit2'){
+      const p=Math.min(1,ph/WHACK_MS);
+      drawField();drawDefense(-1);drawDownedVega();scoreboard();
+      const fr = p<0.4?HENK_STANCE: p<0.6?HENK_CONTACT:HENK_FOLLOW;
+      henk(fr,378,238,2.6,0);
+      if(p>0.5&&p<0.85){ stamp('MEPP!',338,150,34,'#E94B3C','#241f1b');
+        ctx.fillStyle='#C62828'; for(let i=0;i<6;i++){const a=i*1.05; ctx.fillRect(338+Math.cos(a)*((p-0.5)*110),214+Math.sin(a)*((p-0.5)*70),5,5);} }
+      if(p>=1){ hitCount++; go('roam'); }
+      return raf();
+    }
+
+    if(state==='homerun'){
+      drawField();drawDefense(-1);drawDownedVega();scoreboard();
+      const p=ph/1600, hp=lp(HOME,FIRST,Math.min(1,p*0.6));
+      const bx=HOME.x+320*Math.min(1,p), by=HOME.y-Math.sin(Math.min(1,p)*1.45)*560;
+      ball(bx,by,3);
+      if(ph<260) henk(swingFrame(ph),hp.x,hp.y,2.6,0);
+      else henk(HENK_RUN,hp.x,hp.y,2.6,Math.abs(Math.sin(ph/90))*4);
+      stamp('HOME RUN!!',320,150,34,'#F4C542','#241f1b');
+      text('...wacht, wat?!',320,H-14,22,'#F4F4E8');
+      if(ph>1600) showVideo();
+      return raf();
+    }
+    if(state==='video'){ ctx.fillStyle='#0b0b0f';ctx.fillRect(0,0,W,H); return raf(); }
+
+    // ---- BBQ ----
+    if(state==='bbq'){
+      const m=moveVec(), sp=140*dt/1000;
+      henkPos.x+=m.vx*sp; henkPos.y=Math.max(120,Math.min(452,henkPos.y+m.vy*sp));
+      if(henkPos.x>602){ henkPos={x:52,y:360}; go('roam'); return raf(); }
+      henkPos.x=Math.max(30,Math.min(602,henkPos.x));
+      const moving=(m.vx||m.vy); bob+=moving?0.18:0;
+      drawBBQ();drawNPCs();
+      ctx.fillStyle='#1B1B22cc';ctx.fillRect(0,0,W,30);text('BBQ BIJ HENK',12,22,13,'#F4C542','Press Start 2P','left');
+      chef(CHEF,henkPos.x,henkPos.y,2.3,moving?Math.abs(Math.sin(bob))*4:0);
+      nearNPC=null; for(const n of NPCS){ if(!n.gone&&near(henkPos,n,44)){nearNPC=n;break;} }
+      if(nearNPC){ctx.fillStyle='#241f1bcc';ctx.fillRect(nearNPC.x-72,nearNPC.y-66,144,24);text('SPATIE: wat wil je eten?',nearNPC.x,nearNPC.y-49,17,'#F4C542');}
+      else text('Vraag de gasten wat ze willen  ·  rechts = veld',320,H-12,19,'#F4F4E8');
+      return raf();
+    }
+    if(state==='bbqTalk'){
+      drawBBQ();drawNPCs();chef(CHEF,henkPos.x,henkPos.y,2.3,0);
+      if(talkNPC) bubble(talkNPC.x, talkNPC.y-54, Math.max(176,talkLines[0].length*10), 44, talkLines, 20);
+      text('(spatie)',320,H-12,20,'#F4F4E8'); return raf();
+    }
+    if(state==='bbqRage'){
+      drawBBQ();drawNPCs();
+      if(Math.sin(ph/90)>0){ctx.fillStyle='#E94B3C22';ctx.fillRect(0,0,W,H);}
+      chef(CHEF_MAD,henkPos.x,henkPos.y,2.4,Math.sin(ph/70)*3);
+      bubble(henkPos.x, henkPos.y-128, 420, 110, SHOUT, 24);
+      text('(spatie)',320,H-12,20,'#F4F4E8');
+      if(ph>2100) startKick();
+      return raf();
+    }
+    if(state==='bbqKick'){
+      const p=Math.min(1,ph/KICK_MS);
+      drawBBQ();drawNPCs();
+      const hx=(talkNPC?talkNPC.x:400)-56, hy=(talkNPC?talkNPC.y:360);
+      chef(CHEF_MAD,hx,hy,2.4,Math.sin(ph/50)*2);
+      ctx.fillStyle='#20160F';ctx.fillRect(hx+10,hy-24,28,8);
+      const fx=(talkNPC?talkNPC.x:460)+p*840, fy=(talkNPC?talkNPC.y:360)-Math.sin(p*Math.PI)*150;
+      personAt(fx,fy,2.3,p*9,downedColors.hair,downedColors.shirt,downedColors.pants);
+      if(p<0.6)stamp('PANG!',hx+70,hy-70,30,'#F4C542','#241f1b');
+      if(p>=1){ vegaOnField=true; vegaDone=true; go('bbq'); }
+      return raf();
+    }
+    raf();
+  }
+  function raf(){requestAnimationFrame(render);}
+  last=now();raf();
+
+  // ---------- input ----------
+  function act(){
+    switch(state){
+      case 'title': startGame();break;
+      case 'roam': if(near(henkPos,HOME,34))startAtBat(); else if(vegaOnField&&near(henkPos,BODYPT,48))go('hit2'); break;
+      case 'pitch': { const p=(now()-t0)/PITCH_MS,d=Math.abs(p-C);
+        if(d<0.12){beginPlay();} else {strikes++; if(strikes>=3){outReason=pick(STRIKE_OUTS);beginOut();}else go('miss');} break; }
+      case 'out': advanceFromOut();break;
+      case 'video': closeVideo();break;
+      case 'bbq': if(nearNPC){
+          talkNPC=nearNPC;
+          if(!talkNPC.talked){talkNPC.talked=true;talkedCount++;}
+          if(!vegaDone && (talkNPC.isVega||talkedCount===3)){ talkNPC.isVega=true; talkLines=VEGA_LINE; }
+          else talkLines=talkNPC.line;
+          go('bbqTalk');
+        } break;
+      case 'bbqTalk': (talkNPC&&talkNPC.isVega&&!vegaDone)?go('bbqRage'):go('bbq');break;
+      case 'bbqRage': startKick();break;
+    }
+  }
+  startBtn.addEventListener('click',startGame);
+  window.addEventListener('keydown',e=>{keys[e.code]=true; if(e.code==='Space'||e.code==='Enter'){e.preventDefault();act();} if(e.code.startsWith('Arrow'))e.preventDefault();});
+  window.addEventListener('keyup',e=>{keys[e.code]=false;});
+  if(matchMedia('(pointer:coarse)').matches)touchUI.classList.add('on');
+  touchUI.querySelectorAll('.pad button').forEach(b=>{const d=b.dataset.dir;
+    const on=e=>{e.preventDefault();touchDir[d]=true;}, off=e=>{e.preventDefault();touchDir[d]=false;};
+    b.addEventListener('pointerdown',on);b.addEventListener('pointerup',off);b.addEventListener('pointerleave',off);b.addEventListener('pointercancel',off);});
+  document.getElementById('swingBtn').addEventListener('pointerdown',e=>{e.preventDefault();act();});
+  document.getElementById('vidClose').addEventListener('click',e=>{e.preventDefault();closeVideo();});
+  cv.addEventListener('pointerdown',e=>{ if(['title','roam','ready','pitch','miss','out','bbqTalk'].includes(state)){e.preventDefault();act();} },{passive:false});
+})();
+</script>
+</body>
+</html>
+
+</body></html>
