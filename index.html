@@ -261,6 +261,7 @@
   const PITCH_MS=1600,READY_MS=850,MISS_MS=760;
   const C=0.84; // sweet spot = ball just before the plate
   const VIDEO_URL='https://www.youtube.com/watch?v=HtxOsOuY7hA&t=25s';
+  function openVideoTab(){ try{ const a=document.createElement('a'); a.href=VIDEO_URL; a.target='_blank'; a.rel='noopener'; document.body.appendChild(a); a.click(); a.remove(); }catch(e){} }
   const HIT=900,THROW1=650,OUT1_T=1550,FLY_OUT=1300,SEC_F=1000,SEC_S=1000,SEC_OUT=2000,SEC_THROW=1250,KICK_MS=1100,WHACK_MS=680;
   const now=()=>performance.now();
 
@@ -281,7 +282,7 @@
   function startGame(){inning=1;outs=0;strikes=0;henkPos={x:HOME.x,y:HOME.y+4};go('roam');}
   function startAtBat(){henkPos={x:HOME.x,y:HOME.y};strikes=0;go('ready');}
   function beginPlay(){
-    if(Math.random()<0.10){ if(!TOUCH){try{window.open(VIDEO_URL,'_blank');}catch(e){}} play={scenario:'homerun',call:pick(CALLS)}; return go('homerun'); } // rare dinger; desktop opens a tab within the gesture, mobile navigates in showVideo
+    if(Math.random()<0.10){ openVideoTab(); play={scenario:'homerun',call:pick(CALLS)}; return go('homerun'); } // rare dinger: open video via anchor-click inside the swing gesture (iOS-friendly)
     const ground=Math.random()<0.6;
     const tt=pick(ground?INFIELD:OUTFIELD), target={x:tt[0],y:tt[1]};
     const scenario = !ground?pick(['fly','bounce','triple']):pick(['out1','out1','second','trip']);
